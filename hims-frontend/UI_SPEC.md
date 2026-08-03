@@ -85,8 +85,10 @@ Use full pages for:
 Use familiar wording and consistent chips:
 
 - Waiting
+- Called
 - In Consultation
 - Completed
+- Vitals Pending / Vitals Recorded
 - Pending Payment
 - Sample Collected
 - Awaiting Approval
@@ -95,7 +97,10 @@ Use familiar wording and consistent chips:
 - Available
 - Cleaning
 - Cashless Pending
-
+- LAMA
+- DOPR
+- Discharged
+- Expired (death summary context only; use clinically respectful language in UI copy)
 ## India-specific presentation
 
 - Dates: DD-MM-YYYY
@@ -114,43 +119,67 @@ Use familiar wording and consistent chips:
 - Show real API data only
 - No decorative charts without operational value
 - Each widget must link to an actionable filtered view
-- Use role-specific dashboards
-
+- Use role-specific dashboards (reception today board, nurse vitals backlog, doctor today’s queue, cashier outstanding)
 ## Key workflow rules
 
-### Registration
+### Outdoor registration
 
 - Minimum required fields first
 - Optional sections collapsed
 - Duplicate check before save
-- Show next action immediately after registration
+- Show next action immediately after registration (appointment, walk-in, admit, bill)
+
+### Indoor registration (R3)
+
+- Dedicated admit page, not a drawer-only shortcut
+- Bed selection from live availability
+- Deposit and attendant captured before confirm
 
 ### Appointment
 
 - Single-screen booking
-- Doctor availability visible
+- Doctor availability from real slots only
 - Fee and visit type visible before confirmation
-- Clear token/check-in state
+- Clear token/check-in/cancel state
+
+### Nurse vitals station
+
+- Queue-centric list of waiting/called patients
+- Fast vitals form with sticky save
+- Visible “vitals recorded” chip on queue cards
+- Doctor consult must not require re-entry of already recorded vitals
 
 ### Consultation
 
 - Patient header remains visible
-- Previous history available without losing current draft
+- Previous visit history available without losing current draft
+- Shared vitals read/edit from nurse handoff
 - Prescription and orders usable from the same workspace
 - Sticky save/complete actions
+- Email prescription action after complete when permitted
 
 ### Billing
 
-- Fast item search
+- Fast item search by owner categories (OPD, IPD, pathology, radiology, procedure, consultant fee)
 - Keyboard navigation
 - Totals always visible
 - Payment status prominent
-- Print action after successful payment
+- Print and email receipt actions after successful payment
 
 ### Bed board
 
 Use simple status colours and filters by ward/floor. Do not overload bed cards with clinical details.
 
+### Discharge / exit outcomes
+
+Support distinct flows and summary titles for:
+
+- Discharge
+- LAMA
+- DOPR
+- Death
+
+Each must show an attach-all-reports package before finalise (lab, radiology, procedure, clinical docs).
 ## Accessibility
 
 - Keyboard-accessible controls

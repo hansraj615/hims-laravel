@@ -77,6 +77,8 @@ Each feature should own its pages, components, API hooks, schemas, types and tes
 
 Generate navigation from backend permissions.
 
+The frontend must not hardcode production route or action visibility. It must consume backend permission context from `/api/v1/context` or `/api/v1/context/permissions` and hide or disable navigation items and row actions when permission is absent. Backend authorization remains mandatory even when the UI hides an action.
+
 Reception example:
 
 1. Dashboard
@@ -84,18 +86,39 @@ Reception example:
 3. Appointments
 4. OPD Queue
 5. Billing
-6. Admissions
+6. Admissions (when IPD enabled)
 7. Reports
+
+Nurse / compounder example:
+
+1. Today’s Queue
+2. Vitals Station
+3. Patients (read)
+4. Notifications
 
 Doctor example:
 
 1. Today’s Queue
 2. Appointments
-3. Patients
-4. IPD Patients
-5. Orders and Results
-6. Prescriptions
+3. Patients / History
+4. Consultations
+5. IPD Patients (when enabled)
+6. Orders and Results
 7. Schedule
+
+Billing / cashier example:
+
+1. Billing
+2. Payments / Daybook
+3. Patients
+4. Reports
+
+Bed in-charge example (R3):
+
+1. Bed Board
+2. Admissions
+3. Transfers
+4. Discharge Clearance
 
 Lab example:
 
@@ -129,39 +152,62 @@ Use Zustand only for:
 
 ## Core UX workflows
 
-### Patient registration
+### Outdoor (OPD) patient registration
 
 - Search before create
 - Quick registration under one minute
 - Inline duplicate warnings
 - Automatic UHID returned from API
+- ABHA/ABDM verification state visible on patient identity views
+- Scan & Share registration entry point when ABDM integration is enabled
+- Mask Aadhaar, ABHA and government identity values in lists unless permission allows full identity viewing
 - Clear next actions: appointment, walk-in OPD, admission or billing
+
+### Indoor (IPD) patient registration (R3)
+
+- Distinct admit form (not a reuse of OPD quick-reg alone)
+- Admitting doctor, ward/bed, provisional diagnosis, attendant, deposit
+- Immediate bed board and nursing handoff
 
 ### Appointment
 
 Single-screen flow:
 
-Patient → Department → Doctor → Date → Slot → Visit Type → Fee → Confirm
+Patient → Department → Doctor → Date → **Available slot** → Visit Type → Fee → Confirm
+
+Slots and fees come from doctor schedule/pricing masters. Leave days must not offer slots.
+
+### Nurse / compounder vitals (R1.5)
+
+- Queue-first vitals station for patients in waiting/called states
+- Capture BP, pulse, temp, SpO2, weight/height and free notes as required by hospital
+- Doctor consult opens with these vitals already populated
+- Doctor may also add or edit vitals during consultation
 
 ### OPD consultation
 
 One complete doctor workspace:
 
 - Patient summary
-- History and vitals
+- Longitudinal visit history (prior encounters, vitals, diagnoses, Rx)
+- Current vitals (shared)
 - Complaints/examination/diagnosis
-- Prescription
+- Prescription with print and email actions
 - Lab/radiology/procedure orders
 - Advice/follow-up
 - Draft and complete actions
+- ICD-10/SNOMED coding fields where diagnosis is captured
+- FHIR export state visible for completed clinical documents
 
 ### Billing
 
-Fast keyboard-friendly item entry, totals always visible, payment drawer, discount approval and print actions.
+Fast keyboard-friendly item entry, totals always visible, payment drawer, discount approval and print actions. Billing screens must display GST/HSN/SAC snapshots for taxable items and payer context for self-pay, government scheme, corporate and private TPA billing.
+
+Support owner categories as catalogues and invoice sources: OPD, IPD, pathology, radiology, procedure, consultant fee (enable as clinical modules land).
 
 ### IPD
 
-Bed board, patient list, clinical timeline, orders, nursing charts, charges, discharge and clearance states.
+Bed board, patient list, clinical timeline, orders, nursing charts, charges, discharge clearance and exit outcomes: discharge, LAMA, DOPR, death — each with summary + attached reports.
 
 ## Accessibility and resilience
 
@@ -203,10 +249,12 @@ Bed board, patient list, clinical timeline, orders, nursing charts, charges, dis
 3. Authentication and route guards
 4. Hospital/branch context
 5. Role-based navigation
-6. Patient registration
+6. Outdoor patient registration
 7. Appointment and queue
 8. OPD consultation
 9. Billing/payment
-10. Lab/pharmacy and remaining modules
+10. **R1.5** — doctor schedule/leave/pricing UI, vitals station, visit history, Rx email indicators
+11. Lab/radiology/procedure and remaining modules
+12. IPD admit, bed board, discharge LAMA/DOPR/death UX
 
 Update `IMPLEMENTATION_STATUS.md` after each completed workflow.

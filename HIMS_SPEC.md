@@ -55,8 +55,8 @@ Do not mix Material UI, Bootstrap, Tailwind and Ant Design in the main frontend.
 ## 4. Product principles
 
 1. Production-ready, not demo-only.
-2. Simple daily workflows.
-3. Role-based menus and dashboards.
+2. Simple daily workflows that match how Indian hospitals actually operate.
+3. Role-based menus and dashboards (reception, nurse/compounder, doctor, billing, bed in-charge, admin).
 4. India-first terminology and formats.
 5. Multi-hospital and multi-branch tenant isolation.
 6. API-first architecture.
@@ -66,6 +66,16 @@ Do not mix Material UI, Bootstrap, Tailwind and Ant Design in the main frontend.
 10. Automated testing for critical patient, billing and stock workflows.
 11. Safe migrations and backward-compatible API versioning.
 12. Monitoring, backups and recovery documentation are part of delivery.
+13. End-to-end journeys only — every released screen must complete a real staff workflow against persistence, not demo stubs.
+
+## 4.1 Owner mandate (non-negotiable spine)
+
+These four capabilities are mandatory product acceptance criteria for a live hospital deployment. They may be delivered across releases, but none may be deferred indefinitely or left as module labels only.
+
+1. **Outdoor patient registration (OPD)** — UHID, demographics, ABHA readiness, visit creation, appointment/walk-in.
+2. **Indoor patient registration (IPD)** — distinct admit workflow (ward/bed, admitting doctor, provisional diagnosis, attendant, deposits).
+3. **Billing** — first-class billable categories: OPD, IPD, pathology, radiology, procedure, consultant fee.
+4. **Patient exit documentation** — discharge, **LAMA**, **DOPR** (Discharge on Patient Request), and death summary, each able to attach all relevant reports for the stay/visit.
 
 ## 5. India-first interface
 
@@ -127,10 +137,9 @@ Support:
 - Session/device history
 - Optional admin MFA
 
-Demo mode may accept OTP `1234` and `123` through environment configuration. Static OTP must never work in production.
+Demo mode may accept OTP `1234` and `123` through environment configuration. Static OTP must never work in production. When demo OTP is disabled, OTP must be delivered through configured email (SMTP/Mailtrap) and/or SMS adapters.
 
-Use permission-based access control. Administrators must be able to create custom roles.
-
+Use permission-based access control. Administrators must be able to create custom roles. Starter clinical/ops roles must include reception, nurse, compounder, doctor, billing, bed in-charge (R3), lab (R2), hospital admin and platform admin.
 ## 8. Production modules
 
 ### Platform and hospital administration
@@ -148,23 +157,26 @@ Use permission-based access control. Administrators must be able to create custo
 
 ### Patient and front desk
 
-- Patient registration
+- Outdoor (OPD) patient registration
+- Indoor (IPD) patient registration / admit entry
 - UHID generation
 - Duplicate detection
 - Patient documents and consent
-- Appointment scheduling
-- Doctor schedules and leave
+- Appointment scheduling against real doctor slots
+- Doctor schedules, consultation pricing and leave
 - Token and queue management
-- Check-in
+- Check-in / cancel / reschedule / start
+- Pre-consult vitals by nurse or compounder while patient is in queue
 - Referral tracking
 
 ### OPD and EMR
 
-- Vitals
+- Shared vitals (nurse/compounder and doctor may create/update; doctor sees existing vitals when consultation starts)
 - Complaints and history
+- Longitudinal patient visit history for the doctor (prior encounters, vitals, diagnoses, prescriptions)
 - Examination
 - Diagnosis
-- Prescription
+- Prescription with print and email delivery
 - Lab/radiology/procedure orders
 - Follow-up
 - Certificates and advice
@@ -172,7 +184,10 @@ Use permission-based access control. Administrators must be able to create custo
 
 ### Billing and finance
 
-- OPD/IPD billing
+- First-class service categories: `opd`, `ipd`, `pathology`, `radiology`, `procedure`, `consultant_fee`
+- OPD and consultant-fee billing
+- Pathology, radiology and procedure billing linked to orders/results
+- IPD billing (room/bed, daily charges, procedures, final bill)
 - Service, package and room charges
 - Deposits and advances
 - Discounts and approvals
@@ -186,9 +201,9 @@ Use permission-based access control. Administrators must be able to create custo
 
 ### IPD and nursing
 
-- Admission
+- Indoor registration / admission
 - Ward/room/bed allocation
-- Bed board and transfer
+- Bed board, bed in-charge workflows, transfer and release
 - Nursing assessment
 - Vitals and charts
 - Medication administration
@@ -196,9 +211,9 @@ Use permission-based access control. Administrators must be able to create custo
 - Orders and procedures
 - Diet
 - Daily charges
-- Discharge workflow
-- Discharge summary
-- LAMA and death summary
+- Discharge clearance workflow
+- Discharge summary with all attached reports
+- Exit outcomes: normal discharge, **LAMA**, **DOPR**, death summary
 
 ### Emergency
 
@@ -349,11 +364,13 @@ Use permission-based access control. Administrators must be able to create custo
 ### Notifications
 
 - In-app
-- Email
-- SMS adapter
-- WhatsApp adapter
+- Email via SMTP (development: Mailtrap or Mailpit; production: configured SMTP/provider)
+- SMS provider adapter behind config (no send when credentials empty; logs/`pending` only)
+- WhatsApp provider adapter behind config (same rule)
 - Future push adapter
 - Templates, logs, retries and delivery status
+- Email OTP delivery for login when real OTP is enabled
+- Prescription and receipt email on clinical/billing completion where consented
 
 ### Reports and analytics
 
@@ -403,6 +420,51 @@ Implement rate limiting, idempotency, API audit logs and OpenAPI documentation.
 - Consent and privacy tracking
 - Production HTTPS only
 
+## 10.1 Indian enterprise compliance baseline
+
+This HIMS is a full-fledged Indian enterprise hospital platform. Clinical, financial and operational modules must support NABH-style auditability, ABDM interoperability and certification readiness, Indian billing compliance and strict privacy controls.
+
+### NHA, ABDM and ABHA
+
+- Store ABHA number, ABHA address, verification state, verification timestamp and ABDM transaction references on patient records.
+- Support ABHA OTP verification workflows and ABDM Scan & Share OPD registration.
+- Store raw ABDM payloads only in controlled JSON fields with access control and audit logging.
+- Track consent references before exchanging records through HIP/HIU workflows.
+- Mask Aadhaar, ABHA and government identity values in normal API/UI responses unless explicit audited permission allows full access.
+- Storing ABHA columns or emitting a minimal FHIR Bundle is **not** ABDM certification. Certification requires gated M1/M2/M3 milestones below.
+
+### ABDM certification milestones (M1 / M2 / M3)
+
+Feature-flag ABDM gateway integration. Each milestone needs sandbox evidence, audit trails and production-safe credentials — not stub UI alone.
+
+| Milestone | Scope | Depends on |
+|---|---|---|
+| **M1** | ABHA creation/verification, demographics linked to ABHA, Scan & Share OPD registration entry | Patient registration, consent, OTP/notification wiring |
+| **M2** | HIP — patient consent artefact, health-record link/notify for encounter, prescription, diagnostics and discharge summaries as FHIR R4 | Clinical documents from OPD/IPD/diagnostics |
+| **M3** | HIU — consent-based fetch and display of external linked health records | Stable M2 + consent UX |
+
+Implement M1 after OPD production hardening; M2 when exportable clinical artefacts exist; M3 only after M2 is reliable.
+
+### FHIR R4 interoperability
+
+- EMR encounters, prescriptions, lab reports, radiology reports and discharge summaries must maintain exportable FHIR R4 JSON payloads.
+- The backend is the source of truth for FHIR construction. Frontend forms collect clinical data but do not assemble authoritative FHIR payloads.
+- FHIR payloads must remain traceable to internal records, patient UHID/ABHA identity and audit events.
+
+### Government schemes, TPA and GST
+
+- Billing must support self-pay, corporate, government scheme and private TPA payer types.
+- Government scheme workflows must account for PM-JAY/Ayushman Bharat, CGHS, ECHS and state scheme package flows.
+- TPA workflows must support pre-authorisation, enhancement, claim submission, query, deduction, settlement and patient-payable split.
+- Billable masters and invoice lines must support HSN/SAC, CGST, SGST and IGST snapshots.
+- Print output must support A4 invoices and 2-inch/3-inch thermal receipts.
+
+### NABH auditability
+
+- All administrative CRUD, clinical record access/modification and financial changes must be auditable.
+- Audit records must capture actor, tenant, branch, request ID, IP address, user agent, timestamp, target record and before/after values where relevant.
+- Audit logs must be append-only at application level and designed for future hash-chain verification.
+
 ## 11. Availability and operations
 
 Production delivery must include:
@@ -421,45 +483,70 @@ Production delivery must include:
 
 ## 12. Implementation order
 
-### Release 1 — Foundation and OPD
+Release R1 foundation (auth, tenancy, patient/UHID, appointment, queue, consultation, OPD billing, in-app notifications) already exists in code. Subsequent releases close owner-mandate and production gaps.
+
+### Release 1 — Foundation and OPD (base — largely built)
 
 - Authentication
 - Tenancy
 - Roles and permissions
 - Hospital setup
-- Patient registration
-- Appointments and schedules
-- Queue/token
-- OPD consultation
-- Billing and payment
-- Notifications
+- Outdoor patient registration
+- Appointments and queue/token
+- OPD consultation foundation
+- Billing and payment foundation
+- In-app notifications and audit foundation
+
+### Release 1.5 — OPD production complete (next build track)
+
+Closes outdoor journey usability for real Indian OPD counters:
+
+- Doctor weekly schedules → bookable slots
+- Doctor leaves / blocked days
+- Consultation pricing / consultant-fee masters
+- Appointment booking only against available slots
+- Roles: nurse, compounder (`opd.vitals`); queue vitals station
+- Doctor sees and may edit shared vitals; longitudinal visit history
+- Queue skip/requeue
+- Service-category masters for all owner billing types (`opd`, `ipd`, `pathology`, `radiology`, `procedure`, `consultant_fee`)
+- Live OPD + consultant-fee billing paths
+- Email via SMTP/Mailtrap (or Mailpit locally); email OTP when enabled; prescription email
+- SMS and WhatsApp adapters: config-wired; pending/log when credentials absent
+- ABDM M1 foundation work may start here (feature-flagged)
 
 ### Release 2 — Diagnostics and pharmacy
 
-- Laboratory
-- Microbiology
+Completes owner billing for pathology, radiology and procedure:
+
+- Laboratory and microbiology
 - Radiology
+- Procedure orders/results/reports
+- Category billing + report attachments into patient record
 - Pharmacy
 - Core inventory
 
-### Release 3 — IPD
+### Release 3 — IPD (owner indoor registration + discharge package)
 
-- Admission
-- Bed management
-- Nursing and doctor workflows
-- Daily charges
-- Discharge
-- Final billing
+- Indoor patient registration / admission
+- Bed management, bed in-charge, transfer, release
+- Nursing and doctor IPD workflows
+- Daily charges and IPD billing
+- Discharge clearance
+- Exit outcomes: discharge, LAMA, DOPR, death
+- Discharge/death/LAMA/DOPR summary with **all attached reports**
+- Final IPD invoice
+- ABDM M2 artefacts for discharge and IPD documents
 
 ### Release 4 — Extended hospital operations
 
 - Emergency
 - OT
-- Insurance/TPA
+- Insurance/TPA depth
 - MRD
-- Purchase/inventory
+- Purchase/inventory depth
 - Reports
 - Patient portal
+- ABDM M3 HIU
 
 ### Release 5 — Enterprise modules
 
@@ -471,7 +558,7 @@ Production delivery must include:
 - External integrations
 - Advanced analytics
 
-Each release must be deployable and support complete workflows.
+Each release must be deployable and support complete staff workflows against real APIs. Owner mandate items #1–#4 are complete only when the corresponding release acceptance above is met end to end.
 
 ## 13. Definition of done
 
